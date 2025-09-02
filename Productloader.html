@@ -1439,17 +1439,14 @@ function validateForm(ignoreIndices = null) {
         errors.push("If you add variants, you must add at least two. To create a single product, remove the variant.");
     }
 
-    // UPDATED VALIDATION
-    if (currentVariants.length === 0) {
-        if ((productType === 'finishedGood' || productType === 'finishedGood & rawMaterial') && isNaN(defaultPrice)) {
-            errors.push("A Default Selling Price is required if no variants are added.");
-        }
-        if ((productType === 'rawMaterial' || productType === 'finishedGood & rawMaterial') && isNaN(defaultCost)) {
-            errors.push("A Default Cost Price is required if no variants are added.");
-        }
+    if (currentVariants.length === 0 && (productType === 'finishedGood' || productType === 'finishedGood & rawMaterial') && isNaN(defaultPrice)) {
+        errors.push("A Default Selling Price is required if no variants are added.");
     }
-
+    
     if (productType === 'rawMaterial' || productType === 'finishedGood & rawMaterial') {
+        if (currentVariants.length === 0 && isNaN(defaultCost)) {
+             errors.push("A Default Cost Price is required if no variants are added.");
+        }
         if(invCat === "") errors.push("Inventory Category is required for this product type.");
         if(suppliedQuantity === "") errors.push("Supplied Quantity is required for this product type.");
     }
@@ -1478,9 +1475,6 @@ function validateForm(ignoreIndices = null) {
     currentVariants.forEach((variant, index) => {
         if (variant.name.trim() === '') {
             errors.push(`Name is required for variant #${index + 1}.`);
-        }
-        if ((productType === 'rawMaterial' || productType === 'finishedGood & rawMaterial') && variant.costPrice.toString().trim() === '') {
-            errors.push(`Cost price is required for variant "${variant.name || `(variant #${index + 1})`}".`);
         }
     });
 
@@ -1513,22 +1507,60 @@ function createProducts() {
   const barcode = (hasBarcode === 'yes') ? document.getElementById("barcode").value.trim() : "";
   const customPlu = document.getElementById("customPlu").value.trim();
 
-  let variantsToProcess = currentVariants.length > 0 ? currentVariants : [{ name: '', sellingPrice: '', costPrice: ''}];
-  
-  let potentialProductsToAdd = [];
-  let nameErrors = [];
+  let productsToCreate = [];
+  const newProductStartIndex = products.length;
+
+  // SPECIAL CASE: Create a separate Raw Material item first
+  if (productType === 'finishedGood & rawMaterial') {
+      const rawProduct = {
+        "Product PLU": "PLU-" + (++pluCounter),
+        "Product Name & Variant": `(RAW) ${baseProductName}`,
+        "Base Name": `(RAW) ${baseProductName}`,
+        "Variant Name": "",
+        "Original Product Type": "rawMaterial",
+        "Site": sessionSite,
+        "GP": 0,
+        "Selling UOM": uom,
+        "Preparation Location": "",
+        "Menu Category": "",
+        "Inventory Category": invCat,
+        "Inventory Sub-Category": invSub,
+        "Product Type": 'single',
+        "Supplied Quantity": suppliedQuantity,
+        "Manufactured Yield": "",
+        "Enabled": true,
+        "Cost Price": isNaN(defaultCost) ? 0 : defaultCost,
+        "Selling Price": 0,
+        "Dynamic Price": false,
+        "Visible on App": false,
+        "Default Selling Location": "Default Selling Location",
+        "Default Storage Location": "Default Storage Location",
+        "Tax Applicable": false,
+        "Modifier": "",
+        "Barcode": ""
+      };
+      productsToCreate.push(rawProduct);
+  }
+
+  const variantsToProcess = currentVariants.length > 0 ? currentVariants : [{ name: '', sellingPrice: defaultPrice, costPrice: defaultCost }];
   
   const productPool = editingIndices ? products.filter((_, i) => !editingIndices.includes(i)) : products;
+  let nameErrors = [];
 
   variantsToProcess.forEach((variant, variantIndex) => {
       let finalName;
       let prefixedBaseName = baseProductName;
+      let finalSellingUOM = uom;
+      let originalProductTypeForVariant = productType;
 
       if (productType === "rawMaterial") {
         prefixedBaseName = "(RAW) " + baseProductName;
+      } else if (productType === 'finishedGood' || productType === 'finishedGood & rawMaterial') {
+        finalSellingUOM = 'ea'; // Finished goods are sold by "Each"
+        originalProductTypeForVariant = 'finishedGood'; // The variants themselves are finished goods
       }
 
-      if (variant.name.trim() !== "") {
+      if (variant.name.trim() !== "" && currentVariants.length > 0) {
           finalName = `${prefixedBaseName} - Options: ${variant.name.trim()}`;
       } else {
           finalName = prefixedBaseName;
@@ -1552,66 +1584,54 @@ function createProducts() {
             .join(', ');
       }
 
-      potentialProductsToAdd.push({
-          baseName: baseProductName,
-          prefixedName: prefixedBaseName,
-          variantName: variant.name.trim(),
-          finalName: finalName,
-          sellingPrice: variant.sellingPrice.toString().trim() !== '' ? parseFloat(variant.sellingPrice) : defaultPrice,
-          costPrice: variant.costPrice.toString().trim() !== '' ? parseFloat(variant.costPrice) : defaultCost,
-          modifierString: modifierString
-      });
+      let internalProductType = 'single';
+      if (productType === 'Manufactured') {
+        internalProductType = 'preparation';
+      }
+
+      const finalPrice = isNaN(variant.sellingPrice) ? 0 : parseFloat(variant.sellingPrice);
+      const finalCost = isNaN(variant.costPrice) ? 0 : parseFloat(variant.costPrice);
+      const gp = (finalPrice > 0) ? ((finalPrice - finalCost) / finalPrice) * 100 : 0;
+      
+      const product = {
+        "Product PLU": (sessionDefinePlu === 'yes' && productType !== 'finishedGood & rawMaterial') ? customPlu : "PLU-" + (++pluCounter),
+        "Product Name & Variant": finalName,
+        "Base Name": prefixedBaseName,
+        "Variant Name": variant.name.trim(),
+        "Original Product Type": originalProductTypeForVariant,
+        "Site": sessionSite,
+        "GP": gp,
+        "Selling UOM": finalSellingUOM,
+        "Preparation Location": prep,
+        "Menu Category": menu,
+        "Inventory Category": invCat,
+        "Inventory Sub-Category": invSub,
+        "Product Type": internalProductType,
+        "Supplied Quantity": (productType === 'rawMaterial') ? suppliedQuantity : '',
+        "Manufactured Yield": (productType === 'Manufactured') ? yieldQuantity : '',
+        "Enabled": true,
+        "Cost Price": finalCost,
+        "Selling Price": finalPrice,
+        "Dynamic Price": false,
+        "Visible on App": false,
+        "Default Selling Location": "Default Selling Location",
+        "Default Storage Location": "Default Storage Location",
+        "Tax Applicable": taxApplicable === 'true',
+        "Modifier": modifierString,
+        "Barcode": barcode
+      };
+      productsToCreate.push(product);
   });
 
   if (nameErrors.length > 0) {
       showModal("Please fix the following issues:\n\n- " + nameErrors.join("\n- "), "error");
       return;
   }
+  
+  // Add all created products to the main array
+  products.push(...productsToCreate);
 
-  const newProductStartIndex = products.length;
-
-  let internalProductType = 'single';
-  if (productType === 'Manufactured') {
-      internalProductType = 'preparation';
-  }
-
-  potentialProductsToAdd.forEach(item => {
-    const finalPrice = isNaN(item.sellingPrice) ? 0 : item.sellingPrice;
-    const finalCost = isNaN(item.costPrice) ? 0 : item.costPrice;
-    const gp = (finalPrice > 0) ? ((finalPrice - finalCost) / finalPrice) * 100 : 0;
-    
-    const productPlu = (sessionDefinePlu === 'yes') ? customPlu : "PLU-" + (++pluCounter);
-    const product = {
-      "Product PLU": productPlu,
-      "Product Name & Variant": item.finalName,
-      "Base Name": item.prefixedName,
-      "Variant Name": item.variantName,
-      "Original Product Type": productType,
-      "Site": sessionSite,
-      "GP": gp,
-      "Selling UOM": uom,
-      "Preparation Location": prep,
-      "Menu Category": menu,
-      "Inventory Category": invCat,
-      "Inventory Sub-Category": invSub,
-      "Product Type": internalProductType,
-      "Supplied Quantity": (productType === 'rawMaterial' || productType === 'finishedGood & rawMaterial') ? suppliedQuantity : '',
-      "Manufactured Yield": (productType === 'Manufactured') ? yieldQuantity : '',
-      "Enabled": true,
-      "Cost Price": finalCost,
-      "Selling Price": finalPrice,
-      "Dynamic Price": false,
-      "Visible on App": false,
-      "Default Selling Location": "Default Selling Location",
-      "Default Storage Location": "Default Storage Location",
-      "Tax Applicable": taxApplicable === 'true',
-      "Modifier": item.modifierString,
-      "Barcode": barcode
-    };
-    products.push(product);
-  });
-
-  if (potentialProductsToAdd.length > 0) {
+  if (productsToCreate.length > 0) {
     saveState();
     updateTable(newProductStartIndex);
     addToDatalist("prepList", prep);
