@@ -174,6 +174,39 @@
         grid-column: 1 / -1;
     }
 
+    .input-wrapper {
+        display: flex;
+        align-items: center;
+        padding: 0 14px;
+        border-radius: 8px;
+        border: 1px solid var(--yoco-border);
+        background-color: #2a2a2a;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .input-wrapper:focus-within {
+        outline: none;
+        border-color: var(--yoco-primary);
+        box-shadow: 0 0 0 3px rgba(0, 163, 255, 0.3);
+    }
+    .input-wrapper input {
+        border: none;
+        background-color: transparent;
+        outline: none;
+        padding: 14px 0;
+        flex-grow: 1;
+        width: 100%;
+        color: var(--yoco-text-primary);
+        font-size: 16px;
+        font-family: 'Poppins', sans-serif;
+    }
+    .ghost-text {
+        color: var(--yoco-text-secondary);
+        opacity: 0.7;
+        pointer-events: none;
+        visibility: hidden;
+        white-space: nowrap;
+        padding-left: 0.5ch;
+    }
 
     label {
       font-weight: 500;
@@ -218,6 +251,16 @@
     input::placeholder, textarea::placeholder {
         color: var(--yoco-text-secondary);
         opacity: 0.7;
+    }
+    
+    /* Remove default styling from number inputs inside a wrapper */
+    .input-wrapper input[type="number"] {
+        -moz-appearance: textfield;
+    }
+    .input-wrapper input[type="number"]::-webkit-outer-spin-button,
+    .input-wrapper input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
     }
 
     .table-container {
@@ -592,6 +635,13 @@
     }
 
 
+    @media (max-width: 992px) {
+        .supply-cost-wrapper {
+            grid-column: span 1; 
+        }
+    }
+
+
     @media (max-width: 768px) {
         body {
             padding: 10px;
@@ -617,7 +667,6 @@
         }
         
         .supply-cost-wrapper {
-            grid-column: span 1; 
             grid-template-columns: 1fr;
         }
 
@@ -742,7 +791,7 @@
       </div>
 
       <div class="form-group" id="sellingPriceGroup">
-        <label for="sellingPrice" id="sellingPriceLabel" class="tooltip">Default Selling Price
+        <label for="sellingPrice" id="sellingPriceLabel" class="tooltip">Default Selling Price (If no variant is added)
             <span class="tooltiptext">The default selling price. Can be overridden per variant.</span>
         </label>
         <input type="number" step="0.01" id="sellingPrice" placeholder="e.g., 35.00">
@@ -829,11 +878,14 @@
             <label for="suppliedQuantity" id="suppliedQuantityLabel" class="tooltip">Supplied Quantity
                 <span class="tooltiptext">The quantity in which this raw material is supplied or stocked.</span>
             </label>
-            <input type="number" id="suppliedQuantity" placeholder="e.g., 100">
+            <div class="input-wrapper">
+                <input type="number" id="suppliedQuantity" placeholder="e.g., 100">
+                <span id="quantityGhostText" class="ghost-text"></span>
+            </div>
         </div>
         <div class="form-group" id="costPriceGroup">
             <label for="costPrice" id="costPriceLabel" class="tooltip">Default Cost Price
-                <span class="tooltiptext">Cost price of the Selling UOM. E.g., if Selling UOM is KG, this is the price for 1 KG, even if the supplied quantity is 2.5 KG.</span>
+                <span class="tooltiptext">This is the cost for the entire supplied quantity.</span>
             </label>
             <input type="number" step="0.01" id="costPrice" placeholder="e.g., 15.50">
         </div>
@@ -843,7 +895,10 @@
         <label for="yieldQuantity" id="yieldQuantityLabel" class="tooltip">Yield Quantity
             <span class="tooltiptext">The quantity produced from the manufacturing process.</span>
         </label>
-        <input type="number" id="yieldQuantity" placeholder="e.g., 50">
+         <div class="input-wrapper">
+            <input type="number" id="yieldQuantity" placeholder="e.g., 50">
+            <span id="yieldGhostText" class="ghost-text"></span>
+        </div>
       </div>
       
       <div class="form-group">
@@ -929,6 +984,11 @@ const categoryMap = {
     "Supplies": ["Cleaning", "Office", "Uniforms"]
 };
 
+const uomMap = {
+    'ea': 'Each', 'kg': 'Kilograms', 'g': 'Grams', 'l': 'Litres',
+    'ml': 'Millilitres', 'm': 'Meters', 'mm': 'Millimeters', 'cm': 'Centimeters'
+};
+
 // --- DOM Elements ---
 const productForm = document.getElementById('productForm');
 const sessionSiteInput = document.getElementById('sessionSite');
@@ -945,8 +1005,10 @@ const inventorySubCategoryLabel = document.getElementById('inventorySubCategoryL
 const inventoryCategoryInput = document.getElementById('inventoryCategory');
 const supplyCostWrapper = document.getElementById('supplyCostWrapper');
 const suppliedQuantityGroup = document.getElementById('suppliedQuantityGroup');
+const suppliedQuantityInput = document.getElementById('suppliedQuantity');
 const suppliedQuantityLabel = document.getElementById('suppliedQuantityLabel');
 const yieldQuantityGroup = document.getElementById('yieldQuantityGroup');
+const yieldQuantityInput = document.getElementById('yieldQuantity');
 const yieldQuantityLabel = document.getElementById('yieldQuantityLabel');
 const inventorySubCategoryDatalist = document.getElementById('inventorySubCategoryList');
 const hasBarcodeSelect = document.getElementById('hasBarcode');
@@ -963,19 +1025,32 @@ const menuCategoryGroup = document.getElementById('menuCategoryGroup');
 const customModal = document.getElementById('customModal');
 const modalMessage = document.getElementById('modalMessage');
 const modalActions = document.getElementById('modalActions');
+const uomSelect = document.getElementById('uom');
 
 // --- Event Listeners ---
 sessionDefinePluSelect.addEventListener('change', () => { if(defaultsSet) { sessionDefinePlu = sessionDefinePluSelect.value; handlePluVisibility(); }});
 productTypeSelect.addEventListener('change', () => {
     const selectedType = productTypeSelect.value;
     if (selectedType === 'finishedGood' || selectedType === 'finishedGood & rawMaterial') {
-        document.getElementById('uom').value = 'ea';
+        uomSelect.value = 'ea';
     }
     updateRequiredFields();
-    renderVariants(); // Re-render variants when product type changes
+    renderVariants();
+    renderModifiers();
 });
 inventoryCategoryInput.addEventListener('input', handleInventoryCategoryChange);
 hasBarcodeSelect.addEventListener('change', handleBarcodeVisibility);
+suppliedQuantityInput.addEventListener('input', updateGhostText);
+suppliedQuantityInput.addEventListener('focus', updateGhostText);
+suppliedQuantityInput.addEventListener('blur', updateGhostText);
+yieldQuantityInput.addEventListener('input', updateYieldGhostText);
+yieldQuantityInput.addEventListener('focus', updateYieldGhostText);
+yieldQuantityInput.addEventListener('blur', updateYieldGhostText);
+uomSelect.addEventListener('change', () => {
+    updateGhostText();
+    updateYieldGhostText();
+});
+
 
 document.addEventListener('DOMContentLoaded', () => {
     loadState();
@@ -1118,6 +1193,32 @@ function editDefaults(isClearing = false) {
 
 
 // --- UI Logic ---
+function updateGhostText() {
+    const uomValue = uomSelect.value;
+    const quantityValue = suppliedQuantityInput.value;
+    const ghostTextSpan = document.getElementById('quantityGhostText');
+
+    if (uomValue && quantityValue) {
+        ghostTextSpan.textContent = uomMap[uomValue] || '';
+        ghostTextSpan.style.visibility = 'visible';
+    } else {
+        ghostTextSpan.style.visibility = 'hidden';
+    }
+}
+
+function updateYieldGhostText() {
+    const uomValue = uomSelect.value;
+    const quantityValue = yieldQuantityInput.value;
+    const ghostTextSpan = document.getElementById('yieldGhostText');
+
+    if (uomValue && quantityValue) {
+        ghostTextSpan.textContent = uomMap[uomValue] || '';
+        ghostTextSpan.style.visibility = 'visible';
+    } else {
+        ghostTextSpan.style.visibility = 'hidden';
+    }
+}
+
 function handlePluVisibility() {
     if (sessionDefinePlu === 'yes') {
         pluEntryGroup.style.display = 'flex';
@@ -1135,11 +1236,10 @@ function updateRequiredFields() {
     sellingPriceGroup.style.display = 'flex';
     prepLocationGroup.style.display = 'flex';
     menuCategoryGroup.style.display = 'flex';
-    sellingPriceLabel.innerHTML = `<span class="tooltip">Default Selling Price${baseTooltip('The default selling price. Can be overridden per variant.')}</span>`;
+    sellingPriceLabel.innerHTML = `<span class="tooltip">Default Selling Price (If no variant is added)${baseTooltip('The default selling price. Can be overridden per variant.')}</span>`;
     inventoryCategoryLabel.innerHTML = `<span class="tooltip">Inventory Category${baseTooltip('A broad category for stock management. E.g., "Food", "Beverages".')}</span>`;
     inventorySubCategoryLabel.innerHTML = `<span class="tooltip">Inventory Sub-Category${baseTooltip('A more specific category for stock. Suggestions will appear based on the Inventory Category.')}</span>`;
     yieldQuantityGroup.style.display = 'none';
-    yieldQuantityLabel.innerHTML = `<span class="tooltip">Yield Quantity${baseTooltip('The quantity produced from the manufacturing process.')}</span>`;
     supplyCostWrapper.classList.remove('visible');
 
     if (currentVariants.length > 0) {
@@ -1513,34 +1613,16 @@ function createProducts() {
     let productsToCreate = [];
     const newProductStartIndex = products.length;
 
-    // SPECIAL CASE: Create a separate Raw Material item first
     if (productType === 'finishedGood & rawMaterial') {
         const rawProduct = {
-            "Product PLU": "PLU-" + (++pluCounter),
-            "Product Name & Variant": `(RAW) ${baseProductName}`,
-            "Base Name": `(RAW) ${baseProductName}`,
-            "Variant Name": "",
-            "Original Product Type": "rawMaterial",
-            "Site": sessionSite,
-            "GP": 0,
-            "Selling UOM": uom,
-            "Preparation Location": "",
-            "Menu Category": "",
-            "Inventory Category": invCat,
-            "Inventory Sub-Category": invSub,
-            "Product Type": 'single',
-            "Supplied Quantity": suppliedQuantity,
-            "Manufactured Yield": "",
-            "Enabled": true,
-            "Cost Price": isNaN(defaultCost) ? 0 : defaultCost,
-            "Selling Price": 0,
-            "Dynamic Price": false,
-            "Visible on App": false,
-            "Default Selling Location": "Default Storage Location",
-            "Default Storage Location": "Default Storage Location",
-            "Tax Applicable": false,
-            "Modifier": "",
-            "Barcode": ""
+            "Product PLU": "PLU-" + (++pluCounter), "Product Name & Variant": `(RAW) ${baseProductName}`,
+            "Base Name": `(RAW) ${baseProductName}`, "Variant Name": "", "Original Product Type": "rawMaterial",
+            "Site": sessionSite, "GP": 0, "Selling UOM": uom, "Preparation Location": "", "Menu Category": "",
+            "Inventory Category": invCat, "Inventory Sub-Category": invSub, "Product Type": 'single',
+            "Supplied Quantity": suppliedQuantity, "Manufactured Yield": "", "Enabled": true,
+            "Cost Price": isNaN(defaultCost) ? 0 : defaultCost, "Selling Price": 0, "Dynamic Price": false,
+            "Visible on App": false, "Default Selling Location": "Default Storage Location",
+            "Default Storage Location": "Default Storage Location", "Tax Applicable": false, "Modifier": "", "Barcode": ""
         };
         productsToCreate.push(rawProduct);
     }
@@ -1548,93 +1630,55 @@ function createProducts() {
     const variantsToProcess = currentVariants.length > 0 ? currentVariants : [{ name: '', sellingPrice: defaultPrice, costPrice: defaultCost }];
     const productPool = editingIndices ? products.filter((_, i) => !editingIndices.includes(i)) : products;
     let nameErrors = [];
+    
+    let finishedGoods = [];
 
     variantsToProcess.forEach((variant, variantIndex) => {
-        let finalName;
-        let prefixedBaseName = baseProductName;
-        let finalSellingUOM = uom;
-        let originalProductTypeForVariant = productType;
+        let finalName, prefixedBaseName = baseProductName, finalSellingUOM = uom, originalProductTypeForVariant = productType;
 
-        if (productType === "rawMaterial") {
-            prefixedBaseName = "(RAW) " + baseProductName;
-        } else if (productType === "Manufactured") {
-            prefixedBaseName = "(MAN) " + baseProductName;
-        } else if (productType === 'finishedGood' || productType === 'finishedGood & rawMaterial') {
+        if (productType === "rawMaterial") prefixedBaseName = `(RAW) ${baseProductName}`;
+        else if (productType === "Manufactured") prefixedBaseName = `(MAN) ${baseProductName}`;
+        else if (productType === 'finishedGood' || productType === 'finishedGood & rawMaterial') {
             finalSellingUOM = 'ea';
             originalProductTypeForVariant = 'finishedGood';
         }
         
-        if (variant.name && variant.name.trim() !== "" && currentVariants.length > 0) {
-            finalName = `${prefixedBaseName} - Options: ${variant.name.trim()}`;
-        } else {
-            finalName = prefixedBaseName;
-        }
+        finalName = (variant.name && variant.name.trim() !== "" && currentVariants.length > 0) ? `${prefixedBaseName} - Options: ${variant.name.trim()}` : prefixedBaseName;
         
-        if (productPool.some(p => p["Product Name & Variant"] === finalName)) {
-            nameErrors.push(`Product "${finalName}" already exists.`);
-        }
+        if (productPool.some(p => p["Product Name & Variant"] === finalName)) nameErrors.push(`Product "${finalName}" already exists.`);
         
         let modifierString = '';
         if (currentVariants.length > 0) {
             const applicableModifiers = currentModifiers.filter(m => m.variantLink === 'all' || m.variantLink == variantIndex);
-            modifierString = applicableModifiers
-                .filter(m => m.name && m.name.trim() !== "")
-                .map(m => `${m.name.trim()} (${parseFloat(m.price || 0).toFixed(2)})`)
-                .join(', ');
+            modifierString = applicableModifiers.filter(m => m.name && m.name.trim() !== "").map(m => `${m.name.trim()} (${parseFloat(m.price || 0).toFixed(2)})`).join(', ');
         } else {
-            modifierString = currentModifiers
-                .filter(m => m.name && m.name.trim() !== "")
-                .map(m => `${m.name.trim()} (${parseFloat(m.price || 0).toFixed(2)})`)
-                .join(', ');
+            modifierString = currentModifiers.filter(m => m.name && m.name.trim() !== "").map(m => `${m.name.trim()} (${parseFloat(m.price || 0).toFixed(2)})`).join(', ');
         }
 
-        let internalProductType = 'single';
-        if (productType === 'Manufactured') {
-            internalProductType = 'preparation';
-        }
-
-        let finalCost = isNaN(variant.costPrice) ? 0 : parseFloat(variant.costPrice);
-        if (originalProductTypeForVariant === 'finishedGood') {
-            finalCost = 0;
-        }
-
+        let internalProductType = (productType === 'Manufactured') ? 'preparation' : 'single';
+        let finalCost = (originalProductTypeForVariant === 'finishedGood') ? 0 : (isNaN(variant.costPrice) ? 0 : parseFloat(variant.costPrice));
         const finalPrice = isNaN(variant.sellingPrice) ? 0 : parseFloat(variant.sellingPrice);
         const gp = (finalPrice > 0 && finalPrice > finalCost) ? ((finalPrice - finalCost) / finalPrice) * 100 : 0;
         
         const product = {
             "Product PLU": (sessionDefinePlu === 'yes' && productType !== 'finishedGood & rawMaterial') ? customPlu : "PLU-" + (++pluCounter),
-            "Product Name & Variant": finalName,
-            "Base Name": prefixedBaseName,
-            "Variant Name": variant.name ? variant.name.trim() : "",
-            "Original Product Type": originalProductTypeForVariant,
-            "Site": sessionSite,
-            "GP": gp,
-            "Selling UOM": finalSellingUOM,
-            "Preparation Location": (originalProductTypeForVariant === 'finishedGood' || originalProductTypeForVariant === 'Manufactured') ? prep : "",
-            "Menu Category": (originalProductTypeForVariant === 'finishedGood' || originalProductTypeForVariant === 'Manufactured') ? menu : "",
-            "Inventory Category": invCat,
-            "Inventory Sub-Category": invSub,
-            "Product Type": internalProductType,
+            "Product Name & Variant": finalName, "Base Name": prefixedBaseName, "Variant Name": variant.name ? variant.name.trim() : "",
+            "Original Product Type": originalProductTypeForVariant, "Site": sessionSite, "GP": gp, "Selling UOM": finalSellingUOM,
+            "Preparation Location": (originalProductTypeForVariant !== 'rawMaterial') ? prep : "",
+            "Menu Category": (originalProductTypeForVariant !== 'rawMaterial') ? menu : "",
+            "Inventory Category": invCat, "Inventory Sub-Category": invSub, "Product Type": internalProductType,
             "Supplied Quantity": (productType === 'rawMaterial') ? suppliedQuantity : '',
-            "Manufactured Yield": (productType === 'Manufactured') ? yieldQuantity : '',
-            "Enabled": true,
-            "Cost Price": finalCost,
-            "Selling Price": finalPrice,
-            "Dynamic Price": false,
-            "Visible on App": false,
-            "Default Selling Location": "Default Selling Location",
-            "Default Storage Location": "Default Storage Location",
-            "Tax Applicable": taxApplicable === 'true',
-            "Modifier": modifierString,
-            "Barcode": barcode
+            "Manufactured Yield": (productType === 'Manufactured') ? yieldQuantity : '', "Enabled": true,
+            "Cost Price": finalCost, "Selling Price": finalPrice, "Dynamic Price": false, "Visible on App": false,
+            "Default Selling Location": "Default Selling Location", "Default Storage Location": "Default Storage Location",
+            "Tax Applicable": taxApplicable === 'true', "Modifier": modifierString, "Barcode": barcode
         };
         
-        if (productType !== 'rawMaterial') {
-            productsToCreate.push(product);
-        } else {
-            productsToCreate = [product]; // For raw, only create one
-        }
+        if(productType !== 'rawMaterial') finishedGoods.push(product);
+        else productsToCreate.push(product);
     });
+    
+    if (productType !== 'rawMaterial') productsToCreate.push(...finishedGoods);
 
     if (nameErrors.length > 0) {
         showModal("Please fix the following issues:\n\n- " + nameErrors.join("\n- "), "error");
@@ -1769,52 +1813,26 @@ function exportToExcel() {
 
 
     return {
-      "Product PLU": p["Product PLU"],
-      "Product Name & Variant": p["Product Name & Variant"],
-      "Site": p.Site,
-      "GP": p["GP"],
-      "Selling UOM": p["Selling UOM"],
-      "Preparation Location": p["Preparation Location"],
-      "Menu Category": p["Menu Category"],
-      "Inventory Category": inventoryCategory,
-      "Inventory Sub-Category": p["Inventory Sub-Category"],
-      "Product Type": p["Product Type"],
-      "Enabled": p.Enabled,
-      "Cost Price": finalCostPrice,
-      "Selling Price": p["Selling Price"],
-      "Dynamic Price": p["Dynamic Price"],
-      "Visible on App": p["Visible on App"],
-      "Default Selling Location": p["Default Selling Location"],
-      "Default Storage Location": p["Default Storage Location"],
-      "Tax Applicable": p["Tax Applicable"],
-      "Modifier": p.Modifier,
-      "Barcode": p.Barcode,
+      "Product PLU": p["Product PLU"], "Product Name & Variant": p["Product Name & Variant"], "Site": p.Site,
+      "GP": p["GP"], "Selling UOM": p["Selling UOM"], "Preparation Location": p["Preparation Location"],
+      "Menu Category": p["Menu Category"], "Inventory Category": inventoryCategory, "Inventory Sub-Category": p["Inventory Sub-Category"],
+      "Product Type": p["Product Type"], "Enabled": p.Enabled, "Cost Price": finalCostPrice, "Selling Price": p["Selling Price"],
+      "Dynamic Price": p["Dynamic Price"], "Visible on App": p["Visible on App"], "Default Selling Location": p["Default Selling Location"],
+      "Default Storage Location": p["Default Storage Location"], "Tax Applicable": p["Tax Applicable"], "Modifier": p.Modifier, "Barcode": p.Barcode,
       "Supplied Quantity": p["Supplied Quantity"] ? `${p["Supplied Quantity"]} ${p["Selling UOM"]}` : '',
       "Supplied Quantity Cost Price": p["Supplied Quantity"] ? p["Cost Price"] : '',
-      "Manufactured Yield": p["Manufactured Yield"],
-      "Product PLU (End)": p["Product PLU"],
-      "Product Name": p["Base Name"],
-      "Variant": p["Variant Name"] ? `Options: ${p["Variant Name"]}` : "",
+      "Manufactured Yield": p["Manufactured Yield"], "Product PLU (End)": p["Product PLU"],
+      "Product Name": p["Base Name"], "Variant": p["Variant Name"] ? `Options: ${p["Variant Name"]}` : "",
       "Listed Product Type": p["Original Product Type"]
     };
   });
   
   const createProductStructureData = products.map(p => {
     return {
-        "Product PLU": p["Product PLU"],
-        "Name": p["Base Name"],
-        "Variants": p["Variant Name"] ? `Options: ${p["Variant Name"]}` : "",
-        "Menu Categories": p["Menu Category"],
-        "Inventory Type": p["Original Product Type"],
-        "Tags": "", // New field, leave blank
-        "Selling UOM": p["Selling UOM"],
-        "Tax Applicable": p["Tax Applicable"],
-        "Show on Royalty": false, // New field, default to false
-        "Inventory Category": p["Inventory Category"],
-        "Inventory Sub-Category": p["Inventory Sub-Category"],
-        "Barcodes": p.Barcode,
-        "Product SKU": p["Product PLU"], // Same as PLU
-        "Description": "" // New field, leave blank
+        "Product PLU": p["Product PLU"], "Name": p["Base Name"], "Variants": p["Variant Name"] ? `Options: ${p["Variant Name"]}` : "",
+        "Menu Categories": p["Menu Category"], "Inventory Type": p["Original Product Type"], "Tags": "", "Selling UOM": p["Selling UOM"],
+        "Tax Applicable": p["Tax Applicable"], "Show on Royalty": false, "Inventory Category": p["Inventory Category"],
+        "Inventory Sub-Category": p["Inventory Sub-Category"], "Barcodes": p.Barcode, "Product SKU": p["Product PLU"], "Description": ""
     };
   });
 
@@ -1882,7 +1900,7 @@ function populateFormForEdit(index) {
     document.getElementById('barcode').value = representativeProduct['Barcode'];
 
     currentVariants = [];
-    if (productGroup.length > 1) {
+    if (productGroup.length > 1 || (productGroup.length === 1 && representativeProduct["Variant Name"])) {
         productGroup.forEach(p => {
             currentVariants.push({ name: p["Variant Name"], sellingPrice: p["Selling Price"] });
         });
