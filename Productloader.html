@@ -52,6 +52,12 @@
         position: relative;
         flex-wrap: wrap;
     }
+
+    .title-container {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
     
     header h2 {
         font-size: 2.5rem;
@@ -113,6 +119,18 @@
         flex-direction: column;
     }
     
+    .supply-cost-wrapper {
+        display: none; /* Hidden by default */
+        grid-column: 1 / -1;
+        gap: 25px;
+    }
+    .supply-cost-wrapper.visible {
+        display: flex;
+    }
+    .supply-cost-wrapper > .form-group {
+        flex: 1;
+    }
+
     .dynamic-section {
         grid-column: 1 / -1; /* Span full width */
         display: flex;
@@ -472,7 +490,7 @@
     }
     
     .creator-stamp-icon {
-        position: absolute; /* MODIFIED: Changed from 'fixed' to 'absolute' */
+        position: absolute;
         top: 15px;
         right: 20px;
         z-index: 9999;
@@ -523,9 +541,9 @@
     }
 
     .how-to-guide {
-        position: absolute;
-        top: 15px;
-        left: 20px;
+        position: relative;
+        top: 0;
+        left: 0;
         z-index: 9999;
         cursor: pointer;
         display: block;
@@ -629,6 +647,10 @@
         .form-actions-footer .btn-add {
             width: 100%;
         }
+        
+        .supply-cost-wrapper.visible {
+            flex-direction: column;
+        }
     }
   </style>
 </head>
@@ -640,13 +662,14 @@
 </div>
 
 <div class="container">
-    <a href="https://www.notion.so" target="_blank" class="how-to-guide">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-        <span class="tooltiptext">How-to Guide</span>
-    </a>
-
     <header>
-        <h2>Table By Yoco Product Loader</h2>
+        <div class="title-container">
+            <a href="https://drive.google.com/file/d/1fpJZsLc_YPHfcS2Fk4ssI1fA3Tof6FAi/view?usp=drive_link" target="_blank" class="how-to-guide">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                <span class="tooltiptext">How-to Guide</span>
+            </a>
+            <h2>Table By Yoco Product Loader</h2>
+        </div>
         <span id="saveStatus">Saved!</span>
         <div class="button-container">
             <button type="button" onclick="exportToExcel()" class="btn-export">Export to Excel</button>
@@ -801,11 +824,19 @@
         <datalist id="inventorySubCategoryList"></datalist>
       </div>
       
-      <div class="form-group" id="suppliedQuantityGroup" style="display: none;">
-        <label for="suppliedQuantity" id="suppliedQuantityLabel" class="tooltip">Supplied Quantity
-            <span class="tooltiptext">The quantity in which this raw material is supplied or stocked.</span>
-        </label>
-        <input type="number" id="suppliedQuantity" placeholder="e.g., 100">
+      <div class="supply-cost-wrapper" id="supplyCostWrapper">
+        <div class="form-group" id="suppliedQuantityGroup" style="display: none;">
+            <label for="suppliedQuantity" id="suppliedQuantityLabel" class="tooltip">Supplied Quantity
+                <span class="tooltiptext">The quantity in which this raw material is supplied or stocked.</span>
+            </label>
+            <input type="number" id="suppliedQuantity" placeholder="e.g., 100">
+        </div>
+        <div class="form-group" id="costPriceGroup">
+            <label for="costPrice" id="costPriceLabel" class="tooltip">Default Cost Price
+                <span class="tooltiptext">Cost price of the Selling UOM. E.g., if Selling UOM is KG, this is the price for 1 KG, even if the supplied quantity is 2.5 KG.</span>
+            </label>
+            <input type="number" step="0.01" id="costPrice" placeholder="e.g., 15.50">
+        </div>
       </div>
       
       <div class="form-group" id="yieldQuantityGroup" style="display: none;">
@@ -813,13 +844,6 @@
             <span class="tooltiptext">The quantity produced from the manufacturing process.</span>
         </label>
         <input type="number" id="yieldQuantity" placeholder="e.g., 50">
-      </div>
-
-      <div class="form-group" id="costPriceGroup">
-        <label for="costPrice" id="costPriceLabel" class="tooltip">Default Cost Price
-            <span class="tooltiptext">Cost price of the Selling UOM. E.g., if Selling UOM is KG, this is the price for 1 KG, even if the supplied quantity is 2.5 KG.</span>
-        </label>
-        <input type="number" step="0.01" id="costPrice" placeholder="e.g., 15.50">
       </div>
       
       <div class="form-group">
@@ -906,6 +930,7 @@ const categoryMap = {
 };
 
 // --- DOM Elements ---
+const productForm = document.getElementById('productForm');
 const sessionSiteInput = document.getElementById('sessionSite');
 const sessionDefinePluSelect = document.getElementById('sessionDefinePlu');
 const defaultsButton = document.getElementById('defaultsButton');
@@ -918,6 +943,7 @@ const sellingPriceLabel = document.getElementById('sellingPriceLabel');
 const inventoryCategoryLabel = document.getElementById('inventoryCategoryLabel');
 const inventorySubCategoryLabel = document.getElementById('inventorySubCategoryLabel');
 const inventoryCategoryInput = document.getElementById('inventoryCategory');
+const supplyCostWrapper = document.getElementById('supplyCostWrapper');
 const suppliedQuantityGroup = document.getElementById('suppliedQuantityGroup');
 const suppliedQuantityLabel = document.getElementById('suppliedQuantityLabel');
 const yieldQuantityGroup = document.getElementById('yieldQuantityGroup');
@@ -1105,11 +1131,6 @@ function updateRequiredFields() {
     const selectedType = productTypeSelect.value;
     const baseTooltip = (text) => `<span class="tooltiptext">${text}</span>`;
     
-    // Get elements for reordering
-    const yieldQuantityGroupEl = document.getElementById('yieldQuantityGroup');
-    const costPriceGroupEl = document.getElementById('costPriceGroup');
-    const suppliedQuantityGroupEl = document.getElementById('suppliedQuantityGroup');
-
     // Reset all to default state first
     costPriceGroup.style.display = 'flex';
     sellingPriceGroup.style.display = 'flex';
@@ -1119,20 +1140,20 @@ function updateRequiredFields() {
     sellingPriceLabel.innerHTML = `<span class="tooltip">Default Selling Price${baseTooltip('The default selling price. Can be overridden per variant.')}</span>`;
     inventoryCategoryLabel.innerHTML = `<span class="tooltip">Inventory Category${baseTooltip('A broad category for stock management. E.g., "Food", "Beverages".')}</span>`;
     inventorySubCategoryLabel.innerHTML = `<span class="tooltip">Inventory Sub-Category${baseTooltip('A more specific category for stock. Suggestions will appear based on the Inventory Category.')}</span>`;
-    suppliedQuantityGroup.style.display = 'none';
     yieldQuantityGroup.style.display = 'none';
-    suppliedQuantityLabel.innerHTML = `<span class="tooltip">Supplied Quantity${baseTooltip('The quantity in which this raw material is supplied or stocked.')}</span>`;
     yieldQuantityLabel.innerHTML = `<span class="tooltip">Yield Quantity${baseTooltip('The quantity produced from the manufacturing process.')}</span>`;
     
-    // Reset cost price position to its default (after yield)
-    yieldQuantityGroupEl.after(costPriceGroupEl);
+    // Hide combined wrapper by default
+    supplyCostWrapper.classList.remove('visible');
+    suppliedQuantityGroup.style.display = 'none';
+    costPriceGroup.style.display = 'flex'; // Ensure standalone is visible by default
 
     if (currentVariants.length > 0) {
         sellingPriceGroup.style.display = 'none';
         costPriceGroup.style.display = 'none';
+        supplyCostWrapper.classList.remove('visible');
     } else {
         sellingPriceGroup.style.display = 'flex';
-        costPriceGroup.style.display = 'flex';
     }
 
     // LOGIC BLOCK
@@ -1142,24 +1163,29 @@ function updateRequiredFields() {
         inventorySubCategoryLabel.innerHTML = `<span class="tooltip">Inventory Sub-Category (Not Required)${baseTooltip('A more specific category for stock. Suggestions will appear based on the Inventory Category.')}</span>`;
 
     } else if (selectedType === 'rawMaterial') {
-        costPriceLabel.innerHTML = `<span class="tooltip">Default Cost Price${baseTooltip('This cost price is for the entire supplied quantity. The export will calculate the price per selected UOM.')}</span>`;
         sellingPriceGroup.style.display = 'none';
         prepLocationGroup.style.display = 'none';
         menuCategoryGroup.style.display = 'none';
         inventoryCategoryLabel.innerHTML = `<span class="tooltip">Inventory Category <span class="required-star">*</span>${baseTooltip('A broad category for stock management. E.g., "Food", "Beverages".')}</span>`;
         inventorySubCategoryLabel.innerHTML = `<span class="tooltip">Inventory Sub-Category (Recommended)${baseTooltip('A more specific category for stock. Suggestions will appear based on the Inventory Category.')}</span>`;
+        
+        supplyCostWrapper.classList.add('visible');
         suppliedQuantityGroup.style.display = 'flex';
+        costPriceGroup.style.display = 'flex';
+
+        costPriceLabel.innerHTML = `<span class="tooltip">Default Cost Price${baseTooltip('This cost price is for the entire supplied quantity. The export will calculate the price per selected UOM.')}</span>`;
         suppliedQuantityLabel.innerHTML = `<span class="tooltip">Supplied Quantity <span class="required-star">*</span>${baseTooltip('The quantity in which this raw material is supplied or stocked.')}</span>`;
     
     } else if (selectedType === 'finishedGood & rawMaterial') {
-        costPriceLabel.innerHTML = `<span class="tooltip">Default Cost Price${baseTooltip('This cost price is for the entire supplied quantity. The export will calculate the price per selected UOM.')}</span>`;
         inventoryCategoryLabel.innerHTML = `<span class="tooltip">Inventory Category <span class="required-star">*</span>${baseTooltip('A broad category for stock management. E.g., "Food", "Beverages".')}</span>`;
         inventorySubCategoryLabel.innerHTML = `<span class="tooltip">Inventory Sub-Category (Recommended)${baseTooltip('A more specific category for stock. Suggestions will appear based on the Inventory Category.')}</span>`;
+        
+        supplyCostWrapper.classList.add('visible');
         suppliedQuantityGroup.style.display = 'flex';
-        suppliedQuantityLabel.innerHTML = `<span class="tooltip">Supplied Quantity <span class="required-star">*</span>${baseTooltip('The quantity in which this raw material is supplied or stocked.')}</span>`;
+        costPriceGroup.style.display = 'flex';
 
-        // Move the cost price group to be after the supplied quantity group
-        suppliedQuantityGroupEl.after(costPriceGroupEl);
+        costPriceLabel.innerHTML = `<span class="tooltip">Default Cost Price${baseTooltip('This cost price is for the entire supplied quantity. The export will calculate the price per selected UOM.')}</span>`;
+        suppliedQuantityLabel.innerHTML = `<span class="tooltip">Supplied Quantity <span class="required-star">*</span>${baseTooltip('The quantity in which this raw material is supplied or stocked.')}</span>`;
 
     } else if (selectedType === 'Manufactured') {
         sellingPriceGroup.style.display = 'none';
@@ -1172,6 +1198,11 @@ function updateRequiredFields() {
         yieldQuantityLabel.innerHTML = `<span class="tooltip">Yield Quantity <span class="required-star">*</span>${baseTooltip('The quantity produced from the manufacturing process.')}</span>`;
     }
     
+    // Hide standalone cost price if the combined wrapper is visible
+    if(supplyCostWrapper.classList.contains('visible') && currentVariants.length === 0){
+        // This logic is tricky. The wrapper replaces the standalone.
+    }
+
     // Handle modifier and variant button visibility
     if (selectedType === 'rawMaterial' || selectedType === 'Manufactured') {
         if (currentModifiers.length > 0) {
@@ -1189,7 +1220,7 @@ function updateRequiredFields() {
             showModal('Raw materials and manufactured products must be single items. Variants will be removed.', 'warning');
             currentVariants = [];
             renderVariants();
-            updateRequiredFields(); // Re-run to show default price fields again
+            updateRequiredFields();
         }
         addVariantBtn.disabled = true;
     } else {
@@ -1301,16 +1332,6 @@ function renderVariants() {
         sellingPriceInput.value = variant.sellingPrice;
         sellingPriceInput.oninput = (e) => updateVariant(variantIndex, 'sellingPrice', e.target.value);
         row.appendChild(sellingPriceInput);
-
-        if (selectedType === 'rawMaterial' || selectedType === 'finishedGood & rawMaterial') {
-            const costPriceInput = document.createElement('input');
-            costPriceInput.type = 'number';
-            costPriceInput.step = '0.01';
-            costPriceInput.placeholder = 'Cost Price*';
-            costPriceInput.value = variant.costPrice;
-            costPriceInput.oninput = (e) => updateVariant(variantIndex, 'costPrice', e.target.value);
-            row.appendChild(costPriceInput);
-        }
 
         const removeBtn = document.createElement('button');
         removeBtn.className = 'btn-remove';
@@ -1490,166 +1511,176 @@ function validateForm(ignoreIndices = null) {
 }
 
 function createProducts() {
-  const form = document.getElementById('productForm');
-  const baseProductName = document.getElementById("productName").value.trim();
-  const uom = document.getElementById("uom").value;
-  const prep = document.getElementById("prepLocation").value.trim();
-  const menu = document.getElementById("menuCategory").value.trim();
-  const productType = document.getElementById("productType").value;
-  const invCat = document.getElementById("inventoryCategory").value.trim();
-  const invSub = document.getElementById("inventorySubCategory").value.trim();
-  const suppliedQuantity = document.getElementById("suppliedQuantity").value.trim();
-  const yieldQuantity = document.getElementById("yieldQuantity").value.trim();
-  const defaultCost = parseFloat(document.getElementById("costPrice").value);
-  const defaultPrice = parseFloat(document.getElementById("sellingPrice").value);
-  const taxApplicable = document.getElementById("taxApplicable").value;
-  const hasBarcode = document.getElementById("hasBarcode").value;
-  const barcode = (hasBarcode === 'yes') ? document.getElementById("barcode").value.trim() : "";
-  const customPlu = document.getElementById("customPlu").value.trim();
+    const form = document.getElementById('productForm');
+    const baseProductName = document.getElementById("productName").value.trim();
+    const uom = document.getElementById("uom").value;
+    const prep = document.getElementById("prepLocation").value.trim();
+    const menu = document.getElementById("menuCategory").value.trim();
+    const productType = document.getElementById("productType").value;
+    const invCat = document.getElementById("inventoryCategory").value.trim();
+    const invSub = document.getElementById("inventorySubCategory").value.trim();
+    const suppliedQuantity = document.getElementById("suppliedQuantity").value.trim();
+    const yieldQuantity = document.getElementById("yieldQuantity").value.trim();
+    const defaultCost = parseFloat(document.getElementById("costPrice").value);
+    const defaultPrice = parseFloat(document.getElementById("sellingPrice").value);
+    const taxApplicable = document.getElementById("taxApplicable").value;
+    const hasBarcode = document.getElementById("hasBarcode").value;
+    const barcode = (hasBarcode === 'yes') ? document.getElementById("barcode").value.trim() : "";
+    const customPlu = document.getElementById("customPlu").value.trim();
 
-  let productsToCreate = [];
-  const newProductStartIndex = products.length;
+    let productsToCreate = [];
+    const newProductStartIndex = products.length;
 
-  // SPECIAL CASE: Create a separate Raw Material item first
-  if (productType === 'finishedGood & rawMaterial') {
-      const rawProduct = {
-        "Product PLU": "PLU-" + (++pluCounter),
-        "Product Name & Variant": `(RAW) ${baseProductName}`,
-        "Base Name": `(RAW) ${baseProductName}`,
-        "Variant Name": "",
-        "Original Product Type": "rawMaterial",
-        "Site": sessionSite,
-        "GP": 0,
-        "Selling UOM": uom,
-        "Preparation Location": "",
-        "Menu Category": "",
-        "Inventory Category": invCat,
-        "Inventory Sub-Category": invSub,
-        "Product Type": 'single',
-        "Supplied Quantity": suppliedQuantity,
-        "Manufactured Yield": "",
-        "Enabled": true,
-        "Cost Price": isNaN(defaultCost) ? 0 : defaultCost,
-        "Selling Price": 0,
-        "Dynamic Price": false,
-        "Visible on App": false,
-        "Default Selling Location": "Default Selling Location",
-        "Default Storage Location": "Default Storage Location",
-        "Tax Applicable": false,
-        "Modifier": "",
-        "Barcode": ""
-      };
-      productsToCreate.push(rawProduct);
-  }
+    // SPECIAL CASE: Create a separate Raw Material item first
+    if (productType === 'finishedGood & rawMaterial') {
+        const rawProduct = {
+            "Product PLU": "PLU-" + (++pluCounter),
+            "Product Name & Variant": `(RAW) ${baseProductName}`,
+            "Base Name": `(RAW) ${baseProductName}`,
+            "Variant Name": "",
+            "Original Product Type": "rawMaterial",
+            "Site": sessionSite,
+            "GP": 0,
+            "Selling UOM": uom,
+            "Preparation Location": "",
+            "Menu Category": "",
+            "Inventory Category": invCat,
+            "Inventory Sub-Category": invSub,
+            "Product Type": 'single',
+            "Supplied Quantity": suppliedQuantity,
+            "Manufactured Yield": "",
+            "Enabled": true,
+            "Cost Price": isNaN(defaultCost) ? 0 : defaultCost,
+            "Selling Price": 0,
+            "Dynamic Price": false,
+            "Visible on App": false,
+            "Default Selling Location": "Default Storage Location",
+            "Default Storage Location": "Default Storage Location",
+            "Tax Applicable": false,
+            "Modifier": "",
+            "Barcode": ""
+        };
+        productsToCreate.push(rawProduct);
+    }
 
-  const variantsToProcess = currentVariants.length > 0 ? currentVariants : [{ name: '', sellingPrice: defaultPrice, costPrice: defaultCost }];
-  
-  const productPool = editingIndices ? products.filter((_, i) => !editingIndices.includes(i)) : products;
-  let nameErrors = [];
-
-  variantsToProcess.forEach((variant, variantIndex) => {
-      let finalName;
-      let prefixedBaseName = baseProductName;
-      let finalSellingUOM = uom;
-      let originalProductTypeForVariant = productType;
-
-      if (productType === "rawMaterial") {
-        prefixedBaseName = "(RAW) " + baseProductName;
-      } else if (productType === 'finishedGood' || productType === 'finishedGood & rawMaterial') {
-        finalSellingUOM = 'ea'; // Finished goods are sold by "Each"
-        originalProductTypeForVariant = 'finishedGood'; // The variants themselves are finished goods
-      }
-
-      if (variant.name.trim() !== "" && currentVariants.length > 0) {
-          finalName = `${prefixedBaseName} - Options: ${variant.name.trim()}`;
-      } else {
-          finalName = prefixedBaseName;
-      }
-      
-      if (productPool.some(p => p["Product Name & Variant"] === finalName)) {
-          nameErrors.push(`Product "${finalName}" already exists.`);
-      }
-      
-      let modifierString = '';
-      if (currentVariants.length > 0) {
-          const applicableModifiers = currentModifiers.filter(m => m.variantLink === 'all' || m.variantLink == variantIndex);
-          modifierString = applicableModifiers
-            .filter(m => m.name.trim() !== "")
-            .map(m => `${m.name.trim()} (${parseFloat(m.price || 0).toFixed(2)})`)
-            .join(', ');
-      } else {
-          modifierString = currentModifiers
-            .filter(m => m.name.trim() !== "")
-            .map(m => `${m.name.trim()} (${parseFloat(m.price || 0).toFixed(2)})`)
-            .join(', ');
-      }
-
-      let internalProductType = 'single';
-      if (productType === 'Manufactured') {
-        internalProductType = 'preparation';
-      }
-
-      const finalPrice = isNaN(variant.sellingPrice) ? 0 : parseFloat(variant.sellingPrice);
-      const finalCost = isNaN(variant.costPrice) ? 0 : parseFloat(variant.costPrice);
-      const gp = (finalPrice > 0) ? ((finalPrice - finalCost) / finalPrice) * 100 : 0;
-      
-      const product = {
-        "Product PLU": (sessionDefinePlu === 'yes' && productType !== 'finishedGood & rawMaterial') ? customPlu : "PLU-" + (++pluCounter),
-        "Product Name & Variant": finalName,
-        "Base Name": prefixedBaseName,
-        "Variant Name": variant.name.trim(),
-        "Original Product Type": originalProductTypeForVariant,
-        "Site": sessionSite,
-        "GP": gp,
-        "Selling UOM": finalSellingUOM,
-        "Preparation Location": prep,
-        "Menu Category": menu,
-        "Inventory Category": invCat,
-        "Inventory Sub-Category": invSub,
-        "Product Type": internalProductType,
-        "Supplied Quantity": (productType === 'rawMaterial') ? suppliedQuantity : '',
-        "Manufactured Yield": (productType === 'Manufactured') ? yieldQuantity : '',
-        "Enabled": true,
-        "Cost Price": finalCost,
-        "Selling Price": finalPrice,
-        "Dynamic Price": false,
-        "Visible on App": false,
-        "Default Selling Location": "Default Selling Location",
-        "Default Storage Location": "Default Storage Location",
-        "Tax Applicable": taxApplicable === 'true',
-        "Modifier": modifierString,
-        "Barcode": barcode
-      };
-      productsToCreate.push(product);
-  });
-
-  if (nameErrors.length > 0) {
-      showModal("Please fix the following issues:\n\n- " + nameErrors.join("\n- "), "error");
-      return;
-  }
-  
-  // Add all created products to the main array
-  products.push(...productsToCreate);
-
-  if (productsToCreate.length > 0) {
-    saveState();
-    updateTable(newProductStartIndex);
-    addToDatalist("prepList", prep);
-    addToDatalist("menuList", menu);
-    addToDatalist("inventoryCategoryList", invCat);
-    addToDatalist("inventorySubCategoryList", invSub);
+    const variantsToProcess = currentVariants.length > 0 ? currentVariants : [{ name: '', sellingPrice: defaultPrice, costPrice: defaultCost }];
     
-    form.reset();
+    const productPool = editingIndices ? products.filter((_, i) => !editingIndices.includes(i)) : products;
+    let nameErrors = [];
 
-    currentModifiers = [];
-    currentVariants = [];
-    renderModifiers();
-    renderVariants();
-    updateRequiredFields();
-    handleBarcodeVisibility();
-    document.getElementById("productName").focus();
-  }
+    variantsToProcess.forEach((variant, variantIndex) => {
+        let finalName;
+        let prefixedBaseName = baseProductName;
+        let finalSellingUOM = uom;
+        let originalProductTypeForVariant = productType;
+
+        if (productType === "rawMaterial") {
+            prefixedBaseName = "(RAW) " + baseProductName;
+        } else if (productType === "Manufactured") {
+            prefixedBaseName = "(MAN) " + baseProductName;
+        } else if (productType === 'finishedGood' || productType === 'finishedGood & rawMaterial') {
+            finalSellingUOM = 'ea'; // Finished goods are sold by "Each"
+            originalProductTypeForVariant = 'finishedGood'; // The variants themselves are finished goods
+        }
+        
+        if (variant.name && variant.name.trim() !== "" && currentVariants.length > 0) {
+            finalName = `${prefixedBaseName} - Options: ${variant.name.trim()}`;
+        } else {
+            finalName = prefixedBaseName;
+        }
+        
+        if (productPool.some(p => p["Product Name & Variant"] === finalName)) {
+            nameErrors.push(`Product "${finalName}" already exists.`);
+        }
+        
+        let modifierString = '';
+        if (currentVariants.length > 0) {
+            const applicableModifiers = currentModifiers.filter(m => m.variantLink === 'all' || m.variantLink == variantIndex);
+            modifierString = applicableModifiers
+                .filter(m => m.name && m.name.trim() !== "")
+                .map(m => `${m.name.trim()} (${parseFloat(m.price || 0).toFixed(2)})`)
+                .join(', ');
+        } else {
+            modifierString = currentModifiers
+                .filter(m => m.name && m.name.trim() !== "")
+                .map(m => `${m.name.trim()} (${parseFloat(m.price || 0).toFixed(2)})`)
+                .join(', ');
+        }
+
+        let internalProductType = 'single';
+        if (productType === 'Manufactured') {
+            internalProductType = 'preparation';
+        }
+
+        let finalCost = isNaN(variant.costPrice) ? 0 : parseFloat(variant.costPrice);
+        if (originalProductTypeForVariant === 'finishedGood') {
+            finalCost = 0;
+        }
+
+        const finalPrice = isNaN(variant.sellingPrice) ? 0 : parseFloat(variant.sellingPrice);
+        const gp = (finalPrice > 0) ? ((finalPrice - finalCost) / finalPrice) * 100 : 0;
+        
+        const product = {
+            "Product PLU": (sessionDefinePlu === 'yes' && productType !== 'finishedGood & rawMaterial') ? customPlu : "PLU-" + (++pluCounter),
+            "Product Name & Variant": finalName,
+            "Base Name": prefixedBaseName,
+            "Variant Name": variant.name ? variant.name.trim() : "",
+            "Original Product Type": originalProductTypeForVariant,
+            "Site": sessionSite,
+            "GP": gp,
+            "Selling UOM": finalSellingUOM,
+            "Preparation Location": prep,
+            "Menu Category": menu,
+            "Inventory Category": invCat,
+            "Inventory Sub-Category": invSub,
+            "Product Type": internalProductType,
+            "Supplied Quantity": (productType === 'rawMaterial') ? suppliedQuantity : '',
+            "Manufactured Yield": (productType === 'Manufactured') ? yieldQuantity : '',
+            "Enabled": true,
+            "Cost Price": finalCost,
+            "Selling Price": finalPrice,
+            "Dynamic Price": false,
+            "Visible on App": false,
+            "Default Selling Location": "Default Selling Location",
+            "Default Storage Location": "Default Storage Location",
+            "Tax Applicable": taxApplicable === 'true',
+            "Modifier": modifierString,
+            "Barcode": barcode
+        };
+
+        if (productType !== 'finishedGood & rawMaterial' || currentVariants.length > 0) {
+             productsToCreate.push(product);
+        } else if (productType === 'finishedGood & rawMaterial' && currentVariants.length === 0){
+             productsToCreate.push(product);
+        }
+    });
+
+    if (nameErrors.length > 0) {
+        showModal("Please fix the following issues:\n\n- " + nameErrors.join("\n- "), "error");
+        return;
+    }
+    
+    products.push(...productsToCreate);
+
+    if (productsToCreate.length > 0) {
+        saveState();
+        updateTable(newProductStartIndex);
+        addToDatalist("prepList", prep);
+        addToDatalist("menuList", menu);
+        addToDatalist("inventoryCategoryList", invCat);
+        addToDatalist("inventorySubCategoryList", invSub);
+        
+        form.reset();
+        currentModifiers = [];
+        currentVariants = [];
+        renderModifiers();
+        renderVariants();
+        updateRequiredFields();
+        handleBarcodeVisibility();
+        document.getElementById("productName").focus();
+    }
 }
+
 
 function updateTable(newProductStartIndex = -1) {
   const tbody = document.querySelector("#productTable tbody");
@@ -1723,7 +1754,9 @@ function updateTable(newProductStartIndex = -1) {
 }
 
 function exportToExcel() {
-  // Play sound on export
+  const sanitizedSiteName = sessionSite.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'products';
+  const fileName = `${sanitizedSiteName}_products.xlsx`;
+
   const audio = new Audio('tableaudio.mp3');
   audio.play();
 
@@ -1812,7 +1845,7 @@ function exportToExcel() {
   XLSX.utils.book_append_sheet(wb, ws1, "Site Product Structure");
   XLSX.utils.book_append_sheet(wb, ws2, "Create Product structure");
 
-  XLSX.writeFile(wb, "products.xlsx");
+  XLSX.writeFile(wb, fileName);
 
   showModal(
       'Export successful! Would you like to clear all data from the form?',
@@ -1856,7 +1889,7 @@ function populateFormForEdit(index) {
     const representativeProduct = productGroup[0];
 
     // Populate form fields
-    document.getElementById('productName').value = baseName.replace(/\(RAW\)\s/, '');
+    document.getElementById('productName').value = baseName.replace(/\((RAW|MAN)\)\s/, '');
     document.getElementById('productType').value = representativeProduct['Original Product Type'];
     document.getElementById('taxApplicable').value = representativeProduct['Tax Applicable'] ? 'true' : 'false';
     document.getElementById('uom').value = representativeProduct['Selling UOM'];
@@ -1883,8 +1916,43 @@ function populateFormForEdit(index) {
         document.getElementById('costPrice').value = representativeProduct["Cost Price"];
     }
 
+    // Restore modifiers
     currentModifiers = [];
-    showModal('Product loaded for editing. Modifiers could not be restored and must be re-added.', 'warning');
+    const modifierMap = new Map();
+
+    productGroup.forEach((product, variantIndex) => {
+        if (product.Modifier) {
+            const parts = product.Modifier.split(', ');
+            parts.forEach(part => {
+                const match = part.match(/(.+)\s\((\d+\.\d+)\)/);
+                if (match) {
+                    const name = match[1];
+                    const price = match[2];
+                    const key = `${name}|${price}`;
+
+                    if (!modifierMap.has(key)) {
+                        modifierMap.set(key, { name, price, variantLinks: new Set([variantIndex.toString()]) });
+                    } else {
+                        modifierMap.get(key).variantLinks.add(variantIndex.toString());
+                    }
+                }
+            });
+        }
+    });
+
+    modifierMap.forEach(mod => {
+        let variantLink = '';
+        if (productGroup.length > 1 && mod.variantLinks.size === productGroup.length) {
+            variantLink = 'all';
+        } else {
+            variantLink = mod.variantLinks.values().next().value;
+        }
+        currentModifiers.push({ name: mod.name, price: mod.price, variantLink: variantLink });
+    });
+
+    if (currentModifiers.length > 0) {
+        showModal('Modifiers have been restored. Please double-check their variant links.', 'warning');
+    }
 
     // Update UI
     renderVariants();
@@ -1906,18 +1974,14 @@ function updateProduct() {
         return;
     }
 
-    // Filter out the old products using the stored indices
     products = products.filter((_, index) => !editingIndices.includes(index));
     
-    // Call the existing addProduct logic, which now reads from the form
     addProduct();
 
-    // Reset the button and editing state
     const formActions = document.querySelector('.form-actions-footer');
     formActions.innerHTML = `<button type="button" onclick="addProduct()" class="btn-add">Add Product</button>`;
     editingIndices = null;
 }
-
 
 </script>
 
