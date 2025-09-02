@@ -120,19 +120,18 @@
     }
     
     .supply-cost-wrapper {
-        display: none; /* Hidden by default */
-        grid-column: 1 / -1;
+        display: none; 
+        grid-column: span 2;
+        grid-template-columns: 1fr 1fr;
         gap: 25px;
+        align-items: flex-end;
     }
     .supply-cost-wrapper.visible {
-        display: flex;
+        display: grid;
     }
-    .supply-cost-wrapper > .form-group {
-        flex: 1;
-    }
-
+    
     .dynamic-section {
-        grid-column: 1 / -1; /* Span full width */
+        grid-column: 1 / -1;
         display: flex;
         flex-direction: column;
         gap: 15px;
@@ -614,16 +613,21 @@
 
         .session-settings, form {
             padding: 20px;
-            grid-template-columns: 1fr; /* Single column layout for form */
+            grid-template-columns: 1fr;
+        }
+        
+        .supply-cost-wrapper {
+            grid-column: span 1; 
+            grid-template-columns: 1fr;
         }
 
         .dynamic-row, .modifier-row {
-            grid-template-columns: 1fr; /* Stack inputs in dynamic rows */
+            grid-template-columns: 1fr;
             gap: 15px;
         }
 
         .dynamic-row .btn-remove {
-            align-self: flex-end; /* Move remove button to the end */
+            align-self: flex-end;
         }
 
         th, td {
@@ -647,10 +651,6 @@
         .form-actions-footer .btn-add {
             width: 100%;
         }
-        
-        .supply-cost-wrapper.visible {
-            flex-direction: column;
-        }
     }
   </style>
 </head>
@@ -664,7 +664,7 @@
 <div class="container">
     <header>
         <div class="title-container">
-            <a href="https://drive.google.com/file/d/1fpJZsLc_YPHfcS2Fk4ssI1fA3Tof6FAi/view?usp=drive_link" target="_blank" class="how-to-guide">
+            <a href="https://www.notion.so" target="_blank" class="how-to-guide">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                 <span class="tooltiptext">How-to Guide</span>
             </a>
@@ -825,7 +825,7 @@
       </div>
       
       <div class="supply-cost-wrapper" id="supplyCostWrapper">
-        <div class="form-group" id="suppliedQuantityGroup" style="display: none;">
+        <div class="form-group" id="suppliedQuantityGroup">
             <label for="suppliedQuantity" id="suppliedQuantityLabel" class="tooltip">Supplied Quantity
                 <span class="tooltiptext">The quantity in which this raw material is supplied or stocked.</span>
             </label>
@@ -1132,64 +1132,45 @@ function updateRequiredFields() {
     const baseTooltip = (text) => `<span class="tooltiptext">${text}</span>`;
     
     // Reset all to default state first
-    costPriceGroup.style.display = 'flex';
     sellingPriceGroup.style.display = 'flex';
     prepLocationGroup.style.display = 'flex';
     menuCategoryGroup.style.display = 'flex';
-    costPriceLabel.innerHTML = `<span class="tooltip">Default Cost Price${baseTooltip('Cost price of the Selling UOM. E.g., if Selling UOM is KG, this is the price for 1 KG, even if the supplied quantity is 2.5 KG.')}</span>`;
     sellingPriceLabel.innerHTML = `<span class="tooltip">Default Selling Price${baseTooltip('The default selling price. Can be overridden per variant.')}</span>`;
     inventoryCategoryLabel.innerHTML = `<span class="tooltip">Inventory Category${baseTooltip('A broad category for stock management. E.g., "Food", "Beverages".')}</span>`;
     inventorySubCategoryLabel.innerHTML = `<span class="tooltip">Inventory Sub-Category${baseTooltip('A more specific category for stock. Suggestions will appear based on the Inventory Category.')}</span>`;
     yieldQuantityGroup.style.display = 'none';
     yieldQuantityLabel.innerHTML = `<span class="tooltip">Yield Quantity${baseTooltip('The quantity produced from the manufacturing process.')}</span>`;
-    
-    // Hide combined wrapper by default
     supplyCostWrapper.classList.remove('visible');
-    suppliedQuantityGroup.style.display = 'none';
-    costPriceGroup.style.display = 'flex'; // Ensure standalone is visible by default
 
     if (currentVariants.length > 0) {
         sellingPriceGroup.style.display = 'none';
-        costPriceGroup.style.display = 'none';
         supplyCostWrapper.classList.remove('visible');
-    } else {
-        sellingPriceGroup.style.display = 'flex';
     }
 
     // LOGIC BLOCK
     if (selectedType === 'finishedGood') {
-        costPriceGroup.style.display = 'none';
         inventoryCategoryLabel.innerHTML = `<span class="tooltip">Inventory Category (Not Required)${baseTooltip('A broad category for stock management. E.g., "Food", "Beverages".')}</span>`;
         inventorySubCategoryLabel.innerHTML = `<span class="tooltip">Inventory Sub-Category (Not Required)${baseTooltip('A more specific category for stock. Suggestions will appear based on the Inventory Category.')}</span>`;
 
-    } else if (selectedType === 'rawMaterial') {
+    } else if (selectedType === 'rawMaterial' || selectedType === 'finishedGood & rawMaterial') {
         sellingPriceGroup.style.display = 'none';
         prepLocationGroup.style.display = 'none';
         menuCategoryGroup.style.display = 'none';
         inventoryCategoryLabel.innerHTML = `<span class="tooltip">Inventory Category <span class="required-star">*</span>${baseTooltip('A broad category for stock management. E.g., "Food", "Beverages".')}</span>`;
         inventorySubCategoryLabel.innerHTML = `<span class="tooltip">Inventory Sub-Category (Recommended)${baseTooltip('A more specific category for stock. Suggestions will appear based on the Inventory Category.')}</span>`;
         
-        supplyCostWrapper.classList.add('visible');
-        suppliedQuantityGroup.style.display = 'flex';
-        costPriceGroup.style.display = 'flex';
-
+        if(currentVariants.length === 0) {
+            supplyCostWrapper.classList.add('visible');
+            if (selectedType === 'finishedGood & rawMaterial') {
+                sellingPriceGroup.style.display = 'flex';
+            }
+        }
+        
         costPriceLabel.innerHTML = `<span class="tooltip">Default Cost Price${baseTooltip('This cost price is for the entire supplied quantity. The export will calculate the price per selected UOM.')}</span>`;
         suppliedQuantityLabel.innerHTML = `<span class="tooltip">Supplied Quantity <span class="required-star">*</span>${baseTooltip('The quantity in which this raw material is supplied or stocked.')}</span>`;
     
-    } else if (selectedType === 'finishedGood & rawMaterial') {
-        inventoryCategoryLabel.innerHTML = `<span class="tooltip">Inventory Category <span class="required-star">*</span>${baseTooltip('A broad category for stock management. E.g., "Food", "Beverages".')}</span>`;
-        inventorySubCategoryLabel.innerHTML = `<span class="tooltip">Inventory Sub-Category (Recommended)${baseTooltip('A more specific category for stock. Suggestions will appear based on the Inventory Category.')}</span>`;
-        
-        supplyCostWrapper.classList.add('visible');
-        suppliedQuantityGroup.style.display = 'flex';
-        costPriceGroup.style.display = 'flex';
-
-        costPriceLabel.innerHTML = `<span class="tooltip">Default Cost Price${baseTooltip('This cost price is for the entire supplied quantity. The export will calculate the price per selected UOM.')}</span>`;
-        suppliedQuantityLabel.innerHTML = `<span class="tooltip">Supplied Quantity <span class="required-star">*</span>${baseTooltip('The quantity in which this raw material is supplied or stocked.')}</span>`;
-
     } else if (selectedType === 'Manufactured') {
         sellingPriceGroup.style.display = 'none';
-        costPriceGroup.style.display = 'none';
         prepLocationGroup.style.display = 'none';
         menuCategoryGroup.style.display = 'none';
         inventoryCategoryLabel.innerHTML = `<span class="tooltip">Inventory Category <span class="required-star">*</span>${baseTooltip('A broad category for stock management. E.g., "Food", "Beverages".')}</span>`;
@@ -1198,9 +1179,10 @@ function updateRequiredFields() {
         yieldQuantityLabel.innerHTML = `<span class="tooltip">Yield Quantity <span class="required-star">*</span>${baseTooltip('The quantity produced from the manufacturing process.')}</span>`;
     }
     
-    // Hide standalone cost price if the combined wrapper is visible
-    if(supplyCostWrapper.classList.contains('visible') && currentVariants.length === 0){
-        // This logic is tricky. The wrapper replaces the standalone.
+    if (selectedType === 'finishedGood & rawMaterial' && currentVariants.length > 0) {
+        sellingPriceGroup.style.display = 'none';
+        prepLocationGroup.style.display = 'flex';
+        menuCategoryGroup.style.display = 'flex';
     }
 
     // Handle modifier and variant button visibility
@@ -1465,8 +1447,8 @@ function validateForm(ignoreIndices = null) {
     }
     
     if (productType === 'rawMaterial' || productType === 'finishedGood & rawMaterial') {
-        if (currentVariants.length === 0 && isNaN(defaultCost)) {
-             errors.push("A Default Cost Price is required if no variants are added.");
+        if (isNaN(defaultCost)) {
+             errors.push("A Default Cost Price is required.");
         }
         if(invCat === "") errors.push("Inventory Category is required for this product type.");
         if(suppliedQuantity === "") errors.push("Supplied Quantity is required for this product type.");
@@ -1564,7 +1546,6 @@ function createProducts() {
     }
 
     const variantsToProcess = currentVariants.length > 0 ? currentVariants : [{ name: '', sellingPrice: defaultPrice, costPrice: defaultCost }];
-    
     const productPool = editingIndices ? products.filter((_, i) => !editingIndices.includes(i)) : products;
     let nameErrors = [];
 
@@ -1579,8 +1560,8 @@ function createProducts() {
         } else if (productType === "Manufactured") {
             prefixedBaseName = "(MAN) " + baseProductName;
         } else if (productType === 'finishedGood' || productType === 'finishedGood & rawMaterial') {
-            finalSellingUOM = 'ea'; // Finished goods are sold by "Each"
-            originalProductTypeForVariant = 'finishedGood'; // The variants themselves are finished goods
+            finalSellingUOM = 'ea';
+            originalProductTypeForVariant = 'finishedGood';
         }
         
         if (variant.name && variant.name.trim() !== "" && currentVariants.length > 0) {
@@ -1618,7 +1599,7 @@ function createProducts() {
         }
 
         const finalPrice = isNaN(variant.sellingPrice) ? 0 : parseFloat(variant.sellingPrice);
-        const gp = (finalPrice > 0) ? ((finalPrice - finalCost) / finalPrice) * 100 : 0;
+        const gp = (finalPrice > 0 && finalPrice > finalCost) ? ((finalPrice - finalCost) / finalPrice) * 100 : 0;
         
         const product = {
             "Product PLU": (sessionDefinePlu === 'yes' && productType !== 'finishedGood & rawMaterial') ? customPlu : "PLU-" + (++pluCounter),
@@ -1629,8 +1610,8 @@ function createProducts() {
             "Site": sessionSite,
             "GP": gp,
             "Selling UOM": finalSellingUOM,
-            "Preparation Location": prep,
-            "Menu Category": menu,
+            "Preparation Location": (originalProductTypeForVariant === 'finishedGood' || originalProductTypeForVariant === 'Manufactured') ? prep : "",
+            "Menu Category": (originalProductTypeForVariant === 'finishedGood' || originalProductTypeForVariant === 'Manufactured') ? menu : "",
             "Inventory Category": invCat,
             "Inventory Sub-Category": invSub,
             "Product Type": internalProductType,
@@ -1647,11 +1628,11 @@ function createProducts() {
             "Modifier": modifierString,
             "Barcode": barcode
         };
-
-        if (productType !== 'finishedGood & rawMaterial' || currentVariants.length > 0) {
-             productsToCreate.push(product);
-        } else if (productType === 'finishedGood & rawMaterial' && currentVariants.length === 0){
-             productsToCreate.push(product);
+        
+        if (productType !== 'rawMaterial') {
+            productsToCreate.push(product);
+        } else {
+            productsToCreate = [product]; // For raw, only create one
         }
     });
 
@@ -1680,7 +1661,6 @@ function createProducts() {
         document.getElementById("productName").focus();
     }
 }
-
 
 function updateTable(newProductStartIndex = -1) {
   const tbody = document.querySelector("#productTable tbody");
@@ -1888,7 +1868,6 @@ function populateFormForEdit(index) {
     editingIndices = productGroup.map(p => p.originalIndex);
     const representativeProduct = productGroup[0];
 
-    // Populate form fields
     document.getElementById('productName').value = baseName.replace(/\((RAW|MAN)\)\s/, '');
     document.getElementById('productType').value = representativeProduct['Original Product Type'];
     document.getElementById('taxApplicable').value = representativeProduct['Tax Applicable'] ? 'true' : 'false';
@@ -1905,11 +1884,7 @@ function populateFormForEdit(index) {
     currentVariants = [];
     if (productGroup.length > 1) {
         productGroup.forEach(p => {
-            currentVariants.push({
-                name: p["Variant Name"],
-                sellingPrice: p["Selling Price"],
-                costPrice: p["Cost Price"]
-            });
+            currentVariants.push({ name: p["Variant Name"], sellingPrice: p["Selling Price"] });
         });
     } else {
         document.getElementById('sellingPrice').value = representativeProduct["Selling Price"];
@@ -1924,7 +1899,7 @@ function populateFormForEdit(index) {
         if (product.Modifier) {
             const parts = product.Modifier.split(', ');
             parts.forEach(part => {
-                const match = part.match(/(.+)\s\((\d+\.\d+)\)/);
+                const match = part.match(/(.+?)\s\((\d+\.\d+)\)$/);
                 if (match) {
                     const name = match[1];
                     const price = match[2];
@@ -1950,8 +1925,8 @@ function populateFormForEdit(index) {
         currentModifiers.push({ name: mod.name, price: mod.price, variantLink: variantLink });
     });
 
-    if (currentModifiers.length > 0) {
-        showModal('Modifiers have been restored. Please double-check their variant links.', 'warning');
+    if (modifierMap.size > 0) {
+        showModal('Modifiers have been restored. Please review their variant links, as the "All Variants" setting is an approximation.', 'warning');
     }
 
     // Update UI
