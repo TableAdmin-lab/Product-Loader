@@ -1516,12 +1516,6 @@ function createProducts() {
 
       if (productType === "rawMaterial") {
         prefixedBaseName = "(RAW) " + baseProductName;
-      } else if (productType === "Manufactured") {
-        prefixedBaseName = "(MAN) " + baseProductName;
-      } else if (productType === "finishedGood") {
-        prefixedBaseName = "(FIN) " + baseProductName;
-      } else if (productType === "finishedGood & rawMaterial") {
-        prefixedBaseName = "(F&R) " + baseProductName;
       }
 
       if (variant.name.trim() !== "") {
@@ -1832,7 +1826,7 @@ function populateFormForEdit(index) {
     const representativeProduct = productGroup[0];
 
     // Populate form fields
-    document.getElementById('productName').value = baseName.replace(/\((FIN|RAW|F&R|MAN)\)\s/, '');
+    document.getElementById('productName').value = baseName.replace(/\(RAW\)\s/, '');
     document.getElementById('productType').value = representativeProduct['Original Product Type'];
     document.getElementById('taxApplicable').value = representativeProduct['Tax Applicable'] ? 'true' : 'false';
     document.getElementById('uom').value = representativeProduct['Selling UOM'];
