@@ -1104,6 +1104,11 @@ function handlePluVisibility() {
 function updateRequiredFields() {
     const selectedType = productTypeSelect.value;
     const baseTooltip = (text) => `<span class="tooltiptext">${text}</span>`;
+    
+    // Get elements for reordering
+    const yieldQuantityGroupEl = document.getElementById('yieldQuantityGroup');
+    const costPriceGroupEl = document.getElementById('costPriceGroup');
+    const suppliedQuantityGroupEl = document.getElementById('suppliedQuantityGroup');
 
     // Reset all to default state first
     costPriceGroup.style.display = 'flex';
@@ -1118,6 +1123,9 @@ function updateRequiredFields() {
     yieldQuantityGroup.style.display = 'none';
     suppliedQuantityLabel.innerHTML = `<span class="tooltip">Supplied Quantity${baseTooltip('The quantity in which this raw material is supplied or stocked.')}</span>`;
     yieldQuantityLabel.innerHTML = `<span class="tooltip">Yield Quantity${baseTooltip('The quantity produced from the manufacturing process.')}</span>`;
+    
+    // Reset cost price position to its default (after yield)
+    yieldQuantityGroupEl.after(costPriceGroupEl);
 
     if (currentVariants.length > 0) {
         sellingPriceGroup.style.display = 'none';
@@ -1145,11 +1153,13 @@ function updateRequiredFields() {
     
     } else if (selectedType === 'finishedGood & rawMaterial') {
         costPriceLabel.innerHTML = `<span class="tooltip">Default Cost Price${baseTooltip('This cost price is for the entire supplied quantity. The export will calculate the price per selected UOM.')}</span>`;
-        // sellingPriceGroup is now visible by default
         inventoryCategoryLabel.innerHTML = `<span class="tooltip">Inventory Category <span class="required-star">*</span>${baseTooltip('A broad category for stock management. E.g., "Food", "Beverages".')}</span>`;
         inventorySubCategoryLabel.innerHTML = `<span class="tooltip">Inventory Sub-Category (Recommended)${baseTooltip('A more specific category for stock. Suggestions will appear based on the Inventory Category.')}</span>`;
         suppliedQuantityGroup.style.display = 'flex';
         suppliedQuantityLabel.innerHTML = `<span class="tooltip">Supplied Quantity <span class="required-star">*</span>${baseTooltip('The quantity in which this raw material is supplied or stocked.')}</span>`;
+
+        // Move the cost price group to be after the supplied quantity group
+        suppliedQuantityGroupEl.after(costPriceGroupEl);
 
     } else if (selectedType === 'Manufactured') {
         sellingPriceGroup.style.display = 'none';
